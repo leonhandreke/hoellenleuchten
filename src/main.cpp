@@ -2,8 +2,6 @@
 #include <string>
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
-
 
 #include <NeoPixelBus.h>
 #include <NeoPixelBrightnessBus.h>
@@ -11,12 +9,9 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
-#include <ArtnetWifi.h>
+#include "OtaUploadService.h"
 
-// No MDNS advertising of the OTA update mechanism
-#include <ArduinoOTA.h>
-
-const uint16_t PixelCount = 20;
+const uint16_t PixelCount = 240;
 const uint16_t PixelPin = 26;
 
 NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2s1800KbpsMethod> strip(PixelCount, PixelPin);
@@ -24,62 +19,21 @@ NeoGamma<NeoGammaTableMethod> colorGamma;
 
 
 const uint16_t ArtnetUniverse = 0;
-ArtnetWifi artnet;
-
-
-std::string getName() {
-  std::stringstream mdnsName;
-  mdnsName << "hoellenleuchten-" << std::hex << ESP.getEfuseMac();
-  return mdnsName.str();
-}
 
 void startWifi() {
   //WiFi.mode(WIFI_AP);
   //WiFi.softAP(getName().c_str(), NULL);
   WiFi.mode(WIFI_STA);
-  WiFi.begin("virus89.exe-24ghz", "Mangoldsalat2019");
+  //WiFi.begin("virus89.exe-24ghz", "Mangoldsalat2019");
+  WiFi.begin("annbau.freifunk.net", NULL);
+  //WiFi.begin("berlin.freifunk.net", NULL);
+  WiFi.begin("WGina", "w1rs1ndd1ewg1naw1rs1ndpr1ma");
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi failed");
   }
   Serial.println("WiFi connected");
+  Serial.println(WiFi.localIP());
 }
-
-void startMdns() {
-  Serial.println(getName().c_str());
-  MDNS.begin(getName().c_str());
-}
-
-void startOtaUploadService() {
-  ArduinoOTA
-    .onStart([]() {
-        String type;
-        if (ArduinoOTA.getCommand() == U_FLASH)
-        type = "sketch";
-        else // U_SPIFFS
-        type = "filesystem";
-
-        // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-        Serial.println("Start updating " + type);
-        })
-  .onEnd([]() {
-      Serial.println("\nEnd");
-      })
-  .onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-      })
-  .onError([](ota_error_t error) {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-      else if (error == OTA_END_ERROR) Serial.println("End Failed");
-      });
-
-  ArduinoOTA.setPassword("admin");
-  ArduinoOTA.begin();
-}
-
 
 void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data) {
   // NOTE(Leon Handreke): Copy-pasted from
@@ -87,10 +41,11 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
   // but dumbed down to only read a single universe. If we want to do more than 128 LEDs,
   // the somewhat complicated universe receiving logic should be pulled out into a separate
   // class.
-  for (int i = 0; i < length / 3; i++) {
+  for (int i = 0; i < length / 4; i++) {
     if (i < strip.PixelCount())
     {
-      strip.SetPixelColor(i, RgbwColor(data[i * 3], data[i * 3 + 1], data[i * 3 + 2], 0));
+      strip.SetPixelColor(i, RgbwColor(data[i * 4], data[i * 4 + 1], data[i * 4 + 2], data[i*4+3]));
+      //Serial.println("%i %d %d %d %d", i, data[i*3], data[i*3+1], data[i*3+2
     }
   }
 
@@ -100,16 +55,20 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
 void setup()
 {
   Serial.begin(9600);
+  Serial.println("Startup");
 
-  startWifi();
-  startMdns();
-  startOtaUploadService();
+  //startWifi();
+
+  OtaUploadService otaUploadService;
+  otaUploadService.start();
 
   strip.Begin();
   strip.SetBrightness(50);
 
-  artnet.begin();
-  artnet.setArtDmxCallback(onDmxFrame);
+
+
+
+
 }
 
 // Copy-pasta from NeoPixel example
@@ -183,20 +142,32 @@ void rainbow() {
     }
 
     strip.Show();
-    delay(5);
+    delay(20);
 
 
   }
-  Serial.println("fade2white done");
+  //Serial.println("fade2white done");
+}
+
+void white() {
+  for(int i=0; i<strip.PixelCount(); i++) { // For each pixel in strip...
+    //strip.SetPixelColor(i, RgbwColor(255, 255, 255, 255));
+    strip.SetPixelColor(i, RgbwColor(0, 0, 0, 0));
+  }
+  for(int i=0; i<120; i++) { // For each pixel in strip...
+    //strip.SetPixelColor(i, RgbwColor(255, 255, 255, 255));
+    strip.SetPixelColor(i, RgbwColor(255, 255, 255, 255));
+  }
+  strip.Show();
 }
 
 
 void loop()
 {
-  ArduinoOTA.handle();
   //whiteOverRainbow(75, 5);
   //rainbowFade2White(3, 3, 1);
-  rainbow();
+  //rainbow();
+  white();
 
   //artnet.read();
 }
