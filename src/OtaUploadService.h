@@ -1,6 +1,5 @@
 #include <ArduinoOTA.h>
 
-
 class OtaUploadService {
 
 public:
@@ -47,6 +46,7 @@ public:
 private:
   static void handleLoop(void *pvParameters) {
     ArduinoOTA.handle();
+    Serial.println("ArduinoOTA.handle()");
     delay(500);
   }
 };
