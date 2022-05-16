@@ -2,27 +2,29 @@
 #include <string>
 
 #include <Arduino.h>
+#include <Preferences.h>
 
 #include <NeoPixelBus.h>
 #include <NeoPixelBrightnessBus.h>
 
 #include <WiFi.h>
-#include <WiFiUdp.h>
-
 #include <ArtnetWifi.h>
 
 #include "OtaUploadService.h"
 #include "EffectsService.h"
 
+Preferences preferences;
+char* lastEffectKey = "lastEffect"
+
 const uint16_t PixelCount = 240;
 const uint16_t PixelPin = 26;
-
 NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2s1800KbpsMethod> strip(PixelCount, PixelPin);
 
 const uint16_t ArtnetUniverse = 0;
 ArtnetWifi artnet;
 
 EffectsService effectsService = EffectsService(&strip);
+
 
 void startWifi() {
   WiFi.mode(WIFI_AP);
@@ -43,9 +45,11 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
 
   // If universe 0, start one of the pre-built effects
   if (universe == 0) {
+    preferences.putUChar(lastEffectKey, data[0]);
     effectsService.startEffect(EffectsService::Effect(data[0]));
     return;
   } else {
+    // NOTE(Leon Handreke): Speed up somehow? Fast enough?
     effectsService.stop();
   }
 
@@ -106,7 +110,13 @@ void setup()
   OtaUploadService otaUploadService;
   otaUploadService.start();
 
+  // Start the last-used effect
+  preferences.begin("hoelle", false);
+  effectsService.startEffect(EffectsService::Effect(preferences.getUChar(lastEffectKey)));
+
+  // Start the Artnet Service that will override
   startArtnetService();
+
 }
 
 void loop()
