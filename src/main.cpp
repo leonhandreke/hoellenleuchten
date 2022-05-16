@@ -14,7 +14,7 @@
 #include "EffectsService.h"
 
 Preferences preferences;
-char* lastEffectKey = "lastEffect"
+const char* lastEffectKey = "lastEffect";
 
 const uint16_t PixelCount = 240;
 const uint16_t PixelPin = 26;
@@ -27,6 +27,11 @@ EffectsService effectsService = EffectsService(&strip);
 
 
 void startWifi() {
+  Serial.print("ESP32 Base MAC Address: ");
+  Serial.println(ESP.getEfuseMac());
+  Serial.print("WiFi MAC Address: ");
+  Serial.println(WiFi.macAddress());
+
   WiFi.mode(WIFI_AP);
   WiFi.softAP("esp32", NULL);
   //WiFi.mode(WIFI_STA);
