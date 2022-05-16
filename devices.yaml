@@ -1,0 +1,11 @@
+- name: test1
+  mac: 12:32:45:67:89:10
+  ip: 192.168.0.101
+  groups:
+    - weg
+
+- name: test2
+  mac: 12:32:45:67:89:10
+  ip: 192.168.0.102
+  groups:
+    - weg
