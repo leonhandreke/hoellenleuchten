@@ -19,9 +19,9 @@
 Preferences preferences;
 const char* lastEffectKey = "lastEffect";
 
-const uint16_t PixelCount = 24;
-NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip1(PixelCount, 25, NeoBusChannel_0);
-NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip2(PixelCount, 27, NeoBusChannel_1);
+const uint16_t PixelCount = 25;
+NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip1(PixelCount, 25, NeoBusChannel_1);
+NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip2(PixelCount, 27, NeoBusChannel_0);
 
 const uint16_t ArtnetUniverse = 0;
 ArtnetWifi artnet;
@@ -29,7 +29,26 @@ ArtnetWifi artnet;
 EffectsService effectsService = EffectsService(&strip1, &strip2);
 
 std::unordered_map<std::string, std::string> hostnames = {
-
+    {"94:B5:55:27:50:F4","bitburger-light-1"},
+    {"94:B5:55:27:55:CC","bitburger-light-2"},
+    {"94:B5:55:26:43:EC","bitburger-light-3"},
+    {"94:B5:55:2D:4D:88","bitburger-light-4"},
+    {"94:B5:55:2D:37:C4","bitburger-light-5"},
+    {"94:B5:55:26:7E:9C","bitburger-light-6"},
+    {"94:B5:55:2D:39:78","bitburger-light-7"},
+    {"94:B5:55:26:56:68","bitburger-light-8"},
+    {"94:B5:55:26:60:44","bitburger-light-9"},
+    {"94:B5:55:26:48:D4","bitburger-light-10"},
+    {"94:B5:55:26:9D:DC","bitburger-light-11"},
+    {"94:B5:55:2D:4A:C4","bitburger-light-12"},
+    {"94:B5:55:26:91:1C","bitburger-light-13"},
+    {"94:B5:55:27:5E:F8","bitburger-light-14"},
+    {"94:B5:55:2D:41:A8","bitburger-light-15"},
+    {"94:B5:55:26:35:D8","bitburger-light-16"},
+    {"94:B5:55:25:39:0C","bitburger-light-17"},
+    {"94:B5:55:26:34:E4","bitburger-light-18"},
+    {"94:B5:55:2C:3F:CC","bitburger-light-19"},
+    {"94:B5:55:27:49:E4","bitburger-light-20"},
 };
 
 void startWifi() {
@@ -39,8 +58,17 @@ void startWifi() {
   Serial.println(WiFi.macAddress());
 
 
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.setHostname("bitburger-light");
+  WiFi.mode(WIFI_STA);
+  // Set hostname so that they're easier to identify in the dashboard
+  std::string hostname = "bitburger-light";
+  auto hostnameSearch = hostnames.find(std::string(WiFi.macAddress().c_str()));
+  if (hostnameSearch != hostnames.end()) {
+    hostname = hostnameSearch->second;
+  }
+  // Apparently required to get setHostname to work due to a bug
+  //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.config(((u32_t)0x0UL),((u32_t)0x0UL),((u32_t)0x0UL));
+  WiFi.setHostname(hostname.c_str());
 //  WiFi.mode(WIFI_AP);
 //  WiFi.softAP("esp32", NULL);
 
@@ -48,12 +76,17 @@ void startWifi() {
 //  WiFi.begin("annbau.freifunk.net", NULL);
 //  WiFi.begin("berlin.freifunk.net", NULL);
 //  WiFi.begin("WGina", "w1rs1ndd1ewg1naw1rs1ndpr1ma");
-  WiFi.mode(WIFI_STA);
   WiFi.begin(HOELLENLEUCHTEN_WIFI_SSID, HOELLENLEUCHTEN_WIFI_PASSWORD);
+  Serial.print("Connecting to ");
+  Serial.print(HOELLENLEUCHTEN_WIFI_SSID);
+  Serial.print(" as ");
+  Serial.println(hostname.c_str());
+
   for (int i = 5; i <= 5; i++) {
     if (WiFi.waitForConnectResult() == WL_CONNECTED) {
-      Serial.println("WiFi connected");
+      Serial.print("WiFi connected: ");
       Serial.println(WiFi.localIP());
+      return;
     }
     Serial.println("WiFi failed, retrying...");
     delay(1500);
@@ -91,14 +124,13 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
     }
     strip.Show();
   }
-
-
 }
 
 void _handleArtnetLoop(void *pvParameters) {
   while (true) {
     artnet.read();
-    Serial.println("artnet.read()");
+    // TODO(Leon Handreke): Better way to yield? or disable WDT?
+    vTaskDelay(1);
   }
 }
 
@@ -109,7 +141,7 @@ void startArtnetService() {
   xTaskCreate(
       _handleArtnetLoop,    // Function that should be called
       "Artnet Loop",  // Name of the task (for debugging)
-      1000,            // Stack size (bytes)
+      10000,            // Stack size (bytes)
       NULL,            // Parameter to pass
       1,               // Task priority
       NULL             // Task handle
@@ -118,17 +150,22 @@ void startArtnetService() {
 
 void setup()
 {
-  delay(100);
   Serial.begin(9600);
+  // Give the other side some time to connect
+  delay(100);
   Serial.println("Startup");
+
+  delay(100);
 
   strip1.Begin();
   strip1.SetBrightness(50);
   strip1.ClearTo(RgbwColor(255, 0, 0, 0));
+  strip1.Show();
 
   strip2.Begin();
   strip2.SetBrightness(50);
   strip2.ClearTo(RgbwColor(0, 255, 0, 0));
+  strip2.Show();
 
   startWifi();
 
@@ -141,11 +178,13 @@ void setup()
 
   // Start the Artnet Service that will override
   startArtnetService();
-
 }
 
 void loop()
 {
+  // Free up the CPU core
+  vTaskDelete(NULL);
+
   //whiteOverRainbow(75, 5);
   //rainbowFade2White(3, 3, 1);
   //rainbow();

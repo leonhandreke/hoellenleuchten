@@ -32,6 +32,7 @@ public:
           else if (error == OTA_END_ERROR) Serial.println("End Failed");
         });
 
+    ArduinoOTA.setHostname(WiFi.getHostname());
     ArduinoOTA.setPassword("admin");
     ArduinoOTA.begin();
 

@@ -175,5 +175,6 @@ void EffectsService::whiteEffect() {
     strip1->Show();
     strip2->ClearTo(RgbwColor(0, 0, 0, 255));
     strip2->Show();
+    vTaskDelay(1000);
   }
 }
