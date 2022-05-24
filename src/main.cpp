@@ -11,7 +11,6 @@
 #include <WiFi.h>
 #include <ArtnetWifi.h>
 
-#include "OtaUploadService.h"
 #include "EffectsService.h"
 
 #include "secrets.h"
@@ -27,6 +26,8 @@ const uint16_t ArtnetUniverse = 0;
 ArtnetWifi artnet;
 
 EffectsService effectsService = EffectsService(&strip1, &strip2);
+
+TaskHandle_t artnetTaskHandle;
 
 std::unordered_map<std::string, std::string> hostnames = {
     {"94:B5:55:27:50:F4","bitburger-light-1"},
@@ -51,47 +52,6 @@ std::unordered_map<std::string, std::string> hostnames = {
     {"94:B5:55:27:49:E4","bitburger-light-20"},
 };
 
-void startWifi() {
-  Serial.print("ESP32 Base MAC Address: ");
-  Serial.println(ESP.getEfuseMac());
-  Serial.print("WiFi MAC Address: ");
-  Serial.println(WiFi.macAddress());
-
-
-  WiFi.mode(WIFI_STA);
-  // Set hostname so that they're easier to identify in the dashboard
-  std::string hostname = "bitburger-light";
-  auto hostnameSearch = hostnames.find(std::string(WiFi.macAddress().c_str()));
-  if (hostnameSearch != hostnames.end()) {
-    hostname = hostnameSearch->second;
-  }
-  // Apparently required to get setHostname to work due to a bug
-  //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.config(((u32_t)0x0UL),((u32_t)0x0UL),((u32_t)0x0UL));
-  WiFi.setHostname(hostname.c_str());
-//  WiFi.mode(WIFI_AP);
-//  WiFi.softAP("esp32", NULL);
-
-//  WiFi.begin("virus89.exe-24ghz", "Mangoldsalat2019");
-//  WiFi.begin("annbau.freifunk.net", NULL);
-//  WiFi.begin("berlin.freifunk.net", NULL);
-//  WiFi.begin("WGina", "w1rs1ndd1ewg1naw1rs1ndpr1ma");
-  WiFi.begin(HOELLENLEUCHTEN_WIFI_SSID, HOELLENLEUCHTEN_WIFI_PASSWORD);
-  Serial.print("Connecting to ");
-  Serial.print(HOELLENLEUCHTEN_WIFI_SSID);
-  Serial.print(" as ");
-  Serial.println(hostname.c_str());
-
-  for (int i = 5; i <= 5; i++) {
-    if (WiFi.waitForConnectResult() == WL_CONNECTED) {
-      Serial.print("WiFi connected: ");
-      Serial.println(WiFi.localIP());
-      return;
-    }
-    Serial.println("WiFi failed, retrying...");
-    delay(1500);
-  }
-}
 
 void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data) {
 
@@ -144,9 +104,112 @@ void startArtnetService() {
       10000,            // Stack size (bytes)
       NULL,            // Parameter to pass
       1,               // Task priority
+      &artnetTaskHandle             // Task handle
+  );
+}
+
+void stopArtnetService() {
+  Serial.println("Stopping Artnet service");
+  if (artnetTaskHandle != NULL) {
+    vTaskDelete(artnetTaskHandle);
+  }
+}
+
+
+void _handleOtaUploadLoop(void *pvParameters) {
+  while (true) {
+    ArduinoOTA.handle();
+    vTaskDelay(500);
+  }
+}
+
+void startOtaUploadService() {
+  ArduinoOTA
+      .onStart([]() {
+        effectsService.stop();
+        stopArtnetService();
+
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH)
+          type = "sketch";
+        else // U_SPIFFS
+          type = "filesystem";
+
+        // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+        Serial.println("Start updating " + type);
+      })
+      .onEnd([]() {
+        Serial.println("\nEnd");
+      })
+      .onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      })
+      .onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+      });
+
+  ArduinoOTA.setHostname(WiFi.getHostname());
+  ArduinoOTA.setPassword("admin");
+  ArduinoOTA.begin();
+
+  xTaskCreate(
+      _handleOtaUploadLoop,    // Function that should be called
+      "Handle OTA Upload",  // Name of the task (for debugging)
+      100000,            // Stack size (bytes)
+      NULL,            // Parameter to pass
+      10,               // Task priority
       NULL             // Task handle
   );
 }
+
+void startWifi() {
+  Serial.print("ESP32 Base MAC Address: ");
+  Serial.println(ESP.getEfuseMac());
+  Serial.print("WiFi MAC Address: ");
+  Serial.println(WiFi.macAddress());
+
+
+  WiFi.mode(WIFI_STA);
+  // Set hostname so that they're easier to identify in the dashboard
+  std::string hostname = "bitburger-light";
+  auto hostnameSearch = hostnames.find(std::string(WiFi.macAddress().c_str()));
+  if (hostnameSearch != hostnames.end()) {
+    hostname = hostnameSearch->second;
+  }
+  // Apparently required to get setHostname to work due to a bug
+  //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.config(((u32_t)0x0UL),((u32_t)0x0UL),((u32_t)0x0UL));
+  WiFi.setHostname(hostname.c_str());
+//  WiFi.mode(WIFI_AP);
+//  WiFi.softAP("esp32", NULL);
+
+//  WiFi.begin("virus89.exe-24ghz", "Mangoldsalat2019");
+//  WiFi.begin("annbau.freifunk.net", NULL);
+//  WiFi.begin("berlin.freifunk.net", NULL);
+//  WiFi.begin("WGina", "w1rs1ndd1ewg1naw1rs1ndpr1ma");
+  WiFi.begin(HOELLENLEUCHTEN_WIFI_SSID, HOELLENLEUCHTEN_WIFI_PASSWORD);
+  Serial.print("Connecting to ");
+  Serial.print(HOELLENLEUCHTEN_WIFI_SSID);
+  Serial.print(" as ");
+  Serial.println(hostname.c_str());
+
+  for (int i = 5; i <= 5; i++) {
+    if (WiFi.waitForConnectResult() == WL_CONNECTED) {
+      Serial.print("WiFi connected: ");
+      Serial.println(WiFi.localIP());
+      return;
+    }
+    Serial.println("WiFi failed, retrying...");
+    delay(1500);
+  }
+}
+
+
 
 void setup()
 {
@@ -168,9 +231,7 @@ void setup()
   strip2.Show();
 
   startWifi();
-
-  OtaUploadService otaUploadService;
-  otaUploadService.start();
+  startOtaUploadService();
 
   // Start the last-used effect
   preferences.begin("hoelle", false);
