@@ -1,5 +1,6 @@
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -13,18 +14,23 @@
 #include "OtaUploadService.h"
 #include "EffectsService.h"
 
+#include "secrets.h"
+
 Preferences preferences;
 const char* lastEffectKey = "lastEffect";
 
-const uint16_t PixelCount = 240;
-const uint16_t PixelPin = 26;
-NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2s1800KbpsMethod> strip(PixelCount, PixelPin);
+const uint16_t PixelCount = 24;
+NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip1(PixelCount, 25, NeoBusChannel_0);
+NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip2(PixelCount, 27, NeoBusChannel_1);
 
 const uint16_t ArtnetUniverse = 0;
 ArtnetWifi artnet;
 
-EffectsService effectsService = EffectsService(&strip);
+EffectsService effectsService = EffectsService(&strip1, &strip2);
 
+std::unordered_map<std::string, std::string> hostnames = {
+
+};
 
 void startWifi() {
   Serial.print("ESP32 Base MAC Address: ");
@@ -32,18 +38,26 @@ void startWifi() {
   Serial.print("WiFi MAC Address: ");
   Serial.println(WiFi.macAddress());
 
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP("esp32", NULL);
-  //WiFi.mode(WIFI_STA);
-  //WiFi.begin("virus89.exe-24ghz", "Mangoldsalat2019");
-  //WiFi.begin("annbau.freifunk.net", NULL);
-  //WiFi.begin("berlin.freifunk.net", NULL);
-  //WiFi.begin("WGina", "w1rs1ndd1ewg1naw1rs1ndpr1ma");
-  //if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-  //  Serial.println("WiFi failed");
-  //}
-  Serial.println("WiFi connected");
-  Serial.println(WiFi.localIP());
+
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname("bitburger-light");
+//  WiFi.mode(WIFI_AP);
+//  WiFi.softAP("esp32", NULL);
+
+//  WiFi.begin("virus89.exe-24ghz", "Mangoldsalat2019");
+//  WiFi.begin("annbau.freifunk.net", NULL);
+//  WiFi.begin("berlin.freifunk.net", NULL);
+//  WiFi.begin("WGina", "w1rs1ndd1ewg1naw1rs1ndpr1ma");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(HOELLENLEUCHTEN_WIFI_SSID, HOELLENLEUCHTEN_WIFI_PASSWORD);
+  for (int i = 5; i <= 5; i++) {
+    if (WiFi.waitForConnectResult() == WL_CONNECTED) {
+      Serial.println("WiFi connected");
+      Serial.println(WiFi.localIP());
+    }
+    Serial.println("WiFi failed, retrying...");
+    delay(1500);
+  }
 }
 
 void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data) {
@@ -53,29 +67,32 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
     preferences.putUChar(lastEffectKey, data[0]);
     effectsService.startEffect(EffectsService::Effect(data[0]));
     return;
-  } else {
+  } else if (universe == 1 || universe == 2) {
     // NOTE(Leon Handreke): Speed up somehow? Fast enough?
     effectsService.stop();
-  }
 
-  // NOTE(Leon Handreke): Copy-pasted from
-  // https://github.com/rstephan/ArtnetWifi/blob/master/examples/ArtnetWifiNeoPixel/ArtnetWifiNeoPixel.ino
-  // but dumbed down to only read a single universe. If we want to do more than 128 LEDs,
-  // the somewhat complicated universe receiving logic should be pulled out into a separate
-  // class.
-  for (int i = 0; i < length / 4; i++) {
-    if (i < strip.PixelCount())
-    {
-      uint8_t* pixelData = data + (i*4);
-      strip.SetPixelColor(i, RgbwColor(
-          pixelData[0],
-          pixelData[1],
-          pixelData[2],
-          pixelData[3]));
+    NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip = universe == 1 ? strip1 : strip2;
+
+    // NOTE(Leon Handreke): Copy-pasted from
+    // https://github.com/rstephan/ArtnetWifi/blob/master/examples/ArtnetWifiNeoPixel/ArtnetWifiNeoPixel.ino
+    // but dumbed down to only read a single universe. If we want to do more than 128 LEDs,
+    // the somewhat complicated universe receiving logic should be pulled out into a separate
+    // class.
+    for (int i = 0; i < length / 4; i++) {
+      if (i < strip.PixelCount())
+      {
+        uint8_t* pixelData = data + (i*4);
+        strip.SetPixelColor(i, RgbwColor(
+            pixelData[0],
+            pixelData[1],
+            pixelData[2],
+            pixelData[3]));
+      }
     }
+    strip.Show();
   }
 
-  strip.Show();
+
 }
 
 void _handleArtnetLoop(void *pvParameters) {
@@ -105,10 +122,13 @@ void setup()
   Serial.begin(9600);
   Serial.println("Startup");
 
-  strip.Begin();
-  strip.SetBrightness(50);
-  // Start with just normal white light
-  strip.ClearTo(RgbwColor(0, 0, 0, 255));
+  strip1.Begin();
+  strip1.SetBrightness(50);
+  strip1.ClearTo(RgbwColor(255, 0, 0, 0));
+
+  strip2.Begin();
+  strip2.SetBrightness(50);
+  strip2.ClearTo(RgbwColor(0, 255, 0, 0));
 
   startWifi();
 

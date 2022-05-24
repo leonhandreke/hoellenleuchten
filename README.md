@@ -14,7 +14,7 @@ This project uses the [ProjectIO platform](https://platformio.org/).
 
 or via WiFi using the OTA mechanism:
 
-	PLATFORMIO_UPLOAD_PORT=192.168.0.101 PLATFORMIO_UPLOAD_FLAGS="--auth=password" pio run --target upload -e nodemcu-32s-ota
+	PLATFORMIO_UPLOAD_PORT=192.168.0.101 PLATFORMIO_UPLOAD_FLAGS="--auth=password" pio run --target upload -e esp32dev-ota
 
 ## Tricks
 

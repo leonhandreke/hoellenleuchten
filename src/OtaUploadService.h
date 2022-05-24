@@ -1,3 +1,5 @@
+#include <functional>
+
 #include <ArduinoOTA.h>
 
 class OtaUploadService {
@@ -36,17 +38,25 @@ public:
     xTaskCreate(
         this->handleLoop,    // Function that should be called
         "Handle OTA Upload",  // Name of the task (for debugging)
-        1000,            // Stack size (bytes)
+        100000,            // Stack size (bytes)
         NULL,            // Parameter to pass
-        1,               // Task priority
+        10,               // Task priority
         NULL             // Task handle
     );
   }
 
+  void handle() {
+    ArduinoOTA.handle();
+  }
+
+  std::function<void()> onStartCallback;
+
 private:
   static void handleLoop(void *pvParameters) {
-    ArduinoOTA.handle();
-    Serial.println("ArduinoOTA.handle()");
-    delay(500);
+    while (true) {
+      ArduinoOTA.handle();
+      vTaskDelay(500);
+    }
   }
+
 };
