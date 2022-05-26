@@ -1,11 +1,49 @@
-- name: test1
-  mac: 12:32:45:67:89:10
-  ip: 192.168.0.101
-  groups:
-    - weg
+- mac: 94:B5:55:27:50:F4
+  name: "bitburger-light-1"
+- mac: 94:B5:55:27:55:CC
+  name: "bitburger-light-2"
+- mac: 94:B5:55:26:43:EC
+  name: "bitburger-light-3"
+  location: "Poolweg 2"
+- mac: 94:B5:55:2D:4D:88
+  name: "bitburger-light-4"
+  location: "Straße 3"
+- mac: 94:B5:55:2D:37:C4
+  name: "bitburger-light-5"
+  location: "Straße 2"
+- mac: 94:B5:55:26:7E:9C
+  name: "bitburger-light-6"
+  location: "Straße 4"
+- mac: 94:B5:55:2D:39:78
+  name: "bitburger-light-7"
+  location: "Poolweg 3"
+- mac: 94:B5:55:26:56:68
+  name: "bitburger-light-8"
+- mac: 94:B5:55:26:60:44
+  name: "bitburger-light-9"
+- mac: 94:B5:55:26:48:D4
+  name: "bitburger-light-10"
+- mac: 94:B5:55:26:9D:DC
+  name: "bitburger-light-11"
+- mac: 94:B5:55:2D:4A:C4
+  name: "bitburger-light-12"
+- mac: 94:B5:55:26:91:1C
+  name: "bitburger-light-13"
+- mac: 94:B5:55:27:5E:F8
+  name: "bitburger-light-14"
+  location: "Straße 6"
+- mac: 94:B5:55:2D:41:A8
+  name: "bitburger-light-15"
+  location: "Straße 5"
+- mac: 94:B5:55:26:35:D8
+  name: "bitburger-light-16"
+- mac: 94:B5:55:25:39:0C
+  name: "bitburger-light-17"
+- mac: 94:B5:55:26:34:E4
+  name: "bitburger-light-18"
+  location: "Poolweg 1"
+- mac: 94:B5:55:2C:3F:CC
+  name: "bitburger-light-19"
+- mac: 94:B5:55:27:49:E4
+  name: "bitburger-light-20"
 
-- name: test2
-  mac: 12:32:45:67:89:10
-  ip: 192.168.0.102
-  groups:
-    - weg

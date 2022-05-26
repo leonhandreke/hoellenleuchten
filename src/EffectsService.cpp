@@ -1,10 +1,10 @@
 #include <Arduino.h>
+#include <WiFi.h>
 
 #include <NeoPixelBrightnessBus.h>
 
 #include "EffectsService.h"
 
-NeoGamma<NeoGammaTableMethod> colorGamma;
 
 // Copy-pasta from NeoPixel example
 //void whiteOverRainbow(
@@ -76,6 +76,15 @@ void EffectsService::handleLoop(void *pvParameters) {
       case Effect::RAINBOW_PULSE:
         _this->rainbowPulseEffect();
         break;
+      case Effect::CANDLE:
+        _this->candleEffect();
+        break;
+      case Effect::WHITE_ALL:
+        _this->whiteAllEffect();
+        break;
+      case Effect::WIFI_STRENGTH:
+        _this->wifiStrengthEffect();
+        break;
     }
     taskYIELD();
   }
@@ -109,11 +118,16 @@ void EffectsService::rainbowEffect() {
         // second value (saturation) is a constant 255.
         //strip1.SetPixelColor(i, colorGamma.Correct(RgbColor(
         //        HsbColor(pixelHue / float(65536L), 1.0, 1.0))));
-        strip1->SetPixelColor(i,
-                            HsbColor(pixelHue / float(65536L), 1.0, 1.0));
-        strip2->SetPixelColor(i,
-                             HsbColor(pixelHue / float(65536L), 1.0, 1.0));
+        auto color = colorGamma.Correct(RgbwColor(
+            HsbColor(pixelHue / float(65536L), 1.0, 1.0)));
+        strip1->SetPixelColor(i, color);
+        strip2->SetPixelColor(i, color);
       }
+
+//      for (int i = 0; i < 70; i++) {
+//        strip1->SetPixelColor(i, RgbwColor(0, 0, 0, 0));
+//        strip2->SetPixelColor(i, RgbwColor(0, 0, 0, 0));
+//      }
 
       strip1->Show();
       strip2->Show();
@@ -151,10 +165,10 @@ void EffectsService::rainbowPulseEffect() {
         // second value (saturation) is a constant 255.
         //strip1.SetPixelColor(i, colorGamma.Correct(RgbColor(
         //        HsbColor(pixelHue / float(65536L), 1.0, 1.0))));
-        strip1->SetPixelColor(i,
-                              HsbColor(pixelHue / float(65536L), 1.0, 1.0));
-        strip2->SetPixelColor(i,
-                              HsbColor(pixelHue / float(65536L), 1.0, 1.0));
+        auto color = colorGamma.Correct(RgbwColor(
+            HsbColor(pixelHue / float(65536L), 1.0, 1.0)));
+        strip1->SetPixelColor(i, color);
+        strip2->SetPixelColor(i, color);
       }
 
       strip1->Show();
@@ -176,5 +190,66 @@ void EffectsService::whiteEffect() {
     strip2->ClearTo(RgbwColor(0, 0, 0, 255));
     strip2->Show();
     vTaskDelay(1000);
+  }
+}
+
+void EffectsService::whiteAllEffect() {
+  while (true) {
+    auto color = RgbwColor(255, 255, 255, 255);
+    strip1->ClearTo(color);
+    strip1->Show();
+    strip2->ClearTo(color);
+    strip2->Show();
+    vTaskDelay(1000);
+  }
+}
+
+void EffectsService::candleEffect() {
+
+  strip1->ClearTo(RgbwColor(0, 0, 0, 0));
+  strip2->ClearTo(RgbwColor(0, 0, 0, 0));
+
+  auto color = RgbwColor(200, 20, 10);
+  uint8_t length = 8;
+  uint8_t brightness = 50;
+  uint8_t cycle = 0;
+
+  while (true) {
+    if (cycle % 1 == 0) {
+      color = colorGamma.Correct(RgbwColor(200 + random(50), 80 + random(30), 10));
+      length = 8 + random(7);
+      brightness = 30 + random (30);
+    }
+
+    for (int i = 0; i < strip1->PixelCount(); i++) {
+      if (i < length) {
+        strip1->SetPixelColor(i, color);
+        strip2->SetPixelColor(i, color);
+      } else {
+        strip1->SetPixelColor(i, RgbwColor(0, 0, 0, 0));
+        strip2->SetPixelColor(i, RgbwColor(0, 0, 0, 0));
+      }
+    }
+
+    strip1->SetBrightness(brightness);
+    strip2->SetBrightness(brightness);
+
+    strip1->Show();
+    strip2->Show();
+
+    vTaskDelay(100);
+    cycle++;
+  }
+}
+
+void EffectsService::wifiStrengthEffect() {
+  WiFi.RSSI();
+
+  while (true) {
+    auto color = RgbwColor(0, 255, 0, 0);
+    strip1->Show();
+    strip2->ClearTo(color);
+    strip2->Show();
+    vTaskDelay(100);
   }
 }

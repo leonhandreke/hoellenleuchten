@@ -10,6 +10,6 @@ parser.add_argument('effect', type=int, help="Effect to set")
 
 args = parser.parse_args()
 
-a = StupidArtnet(args.ip, universe=0)
+a = StupidArtnet(args.ip, universe=42)
 a.set_single_value(1, args.effect)
 a.show()
