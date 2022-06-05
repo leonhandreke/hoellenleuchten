@@ -2,7 +2,7 @@
 
 ## Pinout
 
-- GPIO26: SK6812 data
+- GPIO25 and GPIO27: SK6812 LED strips
 
 ## Dependencies
 
@@ -19,3 +19,9 @@ or via WiFi using the OTA mechanism:
 ## Tricks
 
 `pio run --target upload && pio device monitor` to immediately start a serial terminal after uploading.
+
+## Current TODOs
+
+* Implement MQTT
+* Add table which light configurations are deployed where
+* General code cleanup
