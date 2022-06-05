@@ -9,7 +9,8 @@ public:
     RAINBOW_PULSE = 2,
     CANDLE = 3,
     WHITE_ALL = 4,
-    WIFI_STRENGTH = 5
+    WIFI_STRENGTH = 5,
+    RAINBOW_FASTER_SLOWER = 6
   };
   EffectsService(
       NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> *strip1,
@@ -17,6 +18,7 @@ public:
       ) {
       this->strip1 = strip1;
       this->strip2 = strip2;
+      this->taskHandle = NULL;
   }
 
   void startEffect(Effect effect) {
@@ -41,7 +43,9 @@ private:
 
   void whiteEffect();
   void whiteAllEffect();
+  void rainbow(int wait);
   void rainbowEffect();
+  void rainbowFasterSlowerEffect();
   void rainbowPulseEffect();
   void candleEffect();
   void wifiStrengthEffect();

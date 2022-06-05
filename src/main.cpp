@@ -14,7 +14,17 @@
 
 #include "EffectsService.h"
 
+
+#if __has_include("secrets.h")
 #include "secrets.h"
+#endif
+
+#ifndef HOELLENLEUCHTEN_WIFI_SSID
+#warning "secrets.h defining HOELLENLEUCHTEN_WIFI_{SSID,PASSWORD} is missing, compiled firmware will be unable to connect!"
+#define HOELLENLEUCHTEN_WIFI_SSID "hoelle-iot"
+#define HOELLENLEUCHTEN_WIFI_PASSWORD "supersecret"
+#endif
+
 
 Preferences preferences;
 const char* lastEffectKey = "lastEffect";
@@ -38,9 +48,9 @@ std::unordered_map<std::string, DeviceData> devices = {
     {"94:B5:55:27:50:F4",{"bitburger-light-1", 25}},
     {"94:B5:55:27:55:CC",{"bitburger-light-2", 25}},
     {"94:B5:55:26:43:EC",{"bitburger-light-3", 25}},
-    {"94:B5:55:2D:4D:88",{"bitburger-light-4", 25}},
-    {"94:B5:55:2D:37:C4",{"bitburger-light-5", 25}},
-    {"94:B5:55:26:7E:9C",{"bitburger-light-6", 25}},
+    {"94:B5:55:2D:4D:88",{"bitburger-light-4", 61}},
+    {"94:B5:55:2D:37:C4",{"bitburger-light-5", 61}},
+    {"94:B5:55:26:7E:9C",{"bitburger-light-6", 61}},
     {"94:B5:55:2D:39:78",{"bitburger-light-7", 25}},
     {"94:B5:55:26:56:68",{"bitburger-light-8", 25}},
     {"94:B5:55:26:60:44",{"bitburger-light-9", 25}},
@@ -48,8 +58,8 @@ std::unordered_map<std::string, DeviceData> devices = {
     {"94:B5:55:26:9D:DC",{"bitburger-light-11", 25}},
     {"94:B5:55:2D:4A:C4",{"bitburger-light-12", 25}},
     {"94:B5:55:26:91:1C",{"bitburger-light-13", 25}},
-    {"94:B5:55:27:5E:F8",{"bitburger-light-14", 25}},
-    {"94:B5:55:2D:41:A8",{"bitburger-light-15", 60}},
+    {"94:B5:55:27:5E:F8",{"bitburger-light-14", 61}},
+    {"94:B5:55:2D:41:A8",{"bitburger-light-15", 61}},
     {"94:B5:55:26:35:D8",{"bitburger-light-16", 25}},
     {"94:B5:55:25:39:0C",{"bitburger-light-17", 25}},
     {"94:B5:55:26:34:E4",{"bitburger-light-18", 25}},
@@ -70,7 +80,7 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
     // NOTE(Leon Handreke): Speed up somehow? Fast enough?
     effectsService->stop();
 
-    NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> strip = universe == 1 ? strip1 : strip2;
+    NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod> *strip = universe == 1 ? strip1 : strip2;
 
     // NOTE(Leon Handreke): Copy-pasted from
     // https://github.com/rstephan/ArtnetWifi/blob/master/examples/ArtnetWifiNeoPixel/ArtnetWifiNeoPixel.ino
@@ -78,17 +88,17 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
     // the somewhat complicated universe receiving logic should be pulled out into a separate
     // class.
     for (int i = 0; i < length / 4; i++) {
-      if (i < strip.PixelCount())
+      if (i < strip->PixelCount())
       {
         uint8_t* pixelData = data + (i*4);
-        strip.SetPixelColor(i, colorGamma.Correct(RgbwColor(
+        strip->SetPixelColor(i, colorGamma.Correct(RgbwColor(
             pixelData[0],
             pixelData[1],
             pixelData[2],
             pixelData[3])));
       }
     }
-    strip.Show();
+    strip->Show();
   }
 }
 
@@ -132,7 +142,7 @@ void _handleOtaUploadLoop(void *pvParameters) {
 void startOtaUploadService() {
   ArduinoOTA
       .onStart([]() {
-        effectsService.stop();
+        effectsService->stop();
         stopArtnetService();
 
         String type;
@@ -234,8 +244,10 @@ void setup()
   delay(100);
 
   auto pixelCount = myDevice().stripLength;
+  Serial.println(pixelCount);
   strip1 = new NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod>(pixelCount, 25, NeoBusChannel_1);
   strip2 = new NeoPixelBrightnessBus<NeoGrbwFeature, NeoEsp32I2sN800KbpsMethod>(pixelCount, 27, NeoBusChannel_0);
+  effectsService = new EffectsService(strip1, strip2);
 
   strip1->Begin();
   strip1->SetBrightness(255);
@@ -256,9 +268,8 @@ void setup()
 
   // Start the last-used effect
   preferences.begin("hoelle", false);
-  // effectsService.startEffect(EffectsService::Effect(preferences.getUChar(lastEffectKey)));
-  effectsService = new EffectsService(strip1, strip2);
-  effectsService->startEffect(EffectsService::Effect::RAINBOW);
+  effectsService->startEffect(EffectsService::Effect(preferences.getUChar(lastEffectKey)));
+  //effectsService->startEffect(EffectsService::Effect::RAINBOW);
 
   // Start the Artnet Service that will override
   startArtnetService();

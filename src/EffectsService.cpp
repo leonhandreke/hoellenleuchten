@@ -51,7 +51,6 @@
 //}
 
 void EffectsService::start() {
-
   xTaskCreate(
       this->handleLoop,
       "Effect",
@@ -85,6 +84,9 @@ void EffectsService::handleLoop(void *pvParameters) {
       case Effect::WIFI_STRENGTH:
         _this->wifiStrengthEffect();
         break;
+      case Effect::RAINBOW_FASTER_SLOWER:
+        _this->rainbowFasterSlowerEffect();
+        break;
     }
     taskYIELD();
   }
@@ -96,43 +98,55 @@ void EffectsService::stop() {
   }
 }
 
+void EffectsService::rainbowFasterSlowerEffect() {
+  for (int i = 1; i <= 30; i++) {
+    rainbow(i);
+  }
+  for (int i = 30; i >= 1; i--) {
+    rainbow(i);
+  }
+}
+
 void EffectsService::rainbowEffect() {
   while (true) {
-    // Hue of first pixel runs 'rainbowLoops' complete loops through the color
-    // wheel. Color wheel has a range of 65536 but it's OK if we roll over, so
-    // just count from 0 to rainbowLoops*65536, using steps of 256 so we
-    // advance around the wheel at a decent clip.
-    for (uint32_t firstPixelHue = 0; firstPixelHue < 65536;
-         firstPixelHue += 256) {
+    rainbow(20);
+  }
+}
+void EffectsService::rainbow(int wait) {
+  // Hue of first pixel runs 'rainbowLoops' complete loops through the color
+  // wheel. Color wheel has a range of 65536 but it's OK if we roll over, so
+  // just count from 0 to rainbowLoops*65536, using steps of 256 so we
+  // advance around the wheel at a decent clip.
+  for (uint32_t firstPixelHue = 0; firstPixelHue < 65536;
+       firstPixelHue += 256) {
 
-      for (int i = 0; i < strip1->PixelCount(); i++) { // For each pixel in strip1...
+    for (int i = 0; i < strip1->PixelCount(); i++) { // For each pixel in strip1...
 
-        // Offset pixel hue by an amount to make one full revolution of the
-        // color wheel (range of 65536) along the length of the strip1
-        // (strip1.numPixels() steps):
-        uint32_t pixelHue = firstPixelHue + (i * 65536L / strip1->PixelCount());
+      // Offset pixel hue by an amount to make one full revolution of the
+      // color wheel (range of 65536) along the length of the strip1
+      // (strip1.numPixels() steps):
+      uint32_t pixelHue = firstPixelHue + (i * 65536L / strip1->PixelCount());
 
-        // strip1.ColorHSV() can take 1 or 3 arguments: a hue (0 to 65535) or
-        // optionally add saturation and value (brightness) (each 0 to 255).
-        // Here we're using just the three-argument variant, though the
-        // second value (saturation) is a constant 255.
-        //strip1.SetPixelColor(i, colorGamma.Correct(RgbColor(
-        //        HsbColor(pixelHue / float(65536L), 1.0, 1.0))));
-        auto color = colorGamma.Correct(RgbwColor(
-            HsbColor(pixelHue / float(65536L), 1.0, 1.0)));
-        strip1->SetPixelColor(i, color);
-        strip2->SetPixelColor(i, color);
-      }
+      // strip1.ColorHSV() can take 1 or 3 arguments: a hue (0 to 65535) or
+      // optionally add saturation and value (brightness) (each 0 to 255).
+      // Here we're using just the three-argument variant, though the
+      // second value (saturation) is a constant 255.
+      //strip1.SetPixelColor(i, colorGamma.Correct(RgbColor(
+      //        HsbColor(pixelHue / float(65536L), 1.0, 1.0))));
+      auto color = colorGamma.Correct(RgbwColor(
+          HsbColor(pixelHue / float(65536L), 1.0, 1.0)));
+      strip1->SetPixelColor(i, color);
+      strip2->SetPixelColor(i, color);
+    }
 
 //      for (int i = 0; i < 70; i++) {
 //        strip1->SetPixelColor(i, RgbwColor(0, 0, 0, 0));
 //        strip2->SetPixelColor(i, RgbwColor(0, 0, 0, 0));
 //      }
 
-      strip1->Show();
-      strip2->Show();
-      vTaskDelay(20);
-    }
+    strip1->Show();
+    strip2->Show();
+    vTaskDelay(wait);
   }
 }
 
